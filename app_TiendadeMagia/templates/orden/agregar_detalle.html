@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Agregar Detalle{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center pt-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg border-0" style="border-radius: 15px;">
+            <div class="card-header bg-primary text-white text-center" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                <h3 class="mb-0"><i class="fas fa-plus-circle me-2"></i> Agregar Línea de Pedido</h3>
+            </div>
+            <div class="card-body p-4">
+                
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <!-- Campo Orden de Venta -->
+                    <div class="mb-3">
+                        <label for="orden" class="form-label fw-bold">Orden de Venta</label>
+                        <select class="form-select" id="orden" name="orden" required>
+                            <option value="" disabled selected>Seleccione una Orden</option>
+                            {% for orden in ordenes %}
+                                <option value="{{ orden.pk }}">Orden #{{ orden.pk }} (Cliente: {{ orden.cliente|truncatechars:30 }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Campo Producto -->
+                    <div class="mb-3">
+                        <label for="producto" class="form-label fw-bold">Producto</label>
+                        <select class="form-select" id="producto" name="producto" required>
+                            <option value="" disabled selected>Seleccione un Producto</option>
+                            {% for producto in productos %}
+                                <option value="{{ producto.pk }}">
+                                    {{ producto.nombre }} - ${{ producto.precio|floatformat:2 }} (Stock: {{ producto.stock }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Campo Cantidad -->
+                    <div class="mb-4">
+                        <label for="cantidad" class="form-label fw-bold">Cantidad</label>
+                        <input type="number" class="form-control" id="cantidad" name="cantidad" value="1" min="1" required>
+                    </div>
+                    
+                    <!-- Botones de Acción -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg shadow">
+                            <i class="fas fa-save me-2"></i> Guardar Detalle
+                        </button>
+                        <a href="{% url 'ver_detalles' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Cancelar y Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
