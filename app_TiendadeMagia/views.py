@@ -1,10 +1,10 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Sum, F
-from django.db import transaction # Usado para asegurar la integridad de las operaciones
+from django.db import transaction 
 from datetime import date 
-import decimal # Para manejar DecimalFields con seguridad
+import decimal
 
-# IMPORTACIONES CLAVE: Incluir todas las clases y constantes
+# IMPORTACIONES CLAVE
 from .models import (
     Producto, 
     OrdenDeVenta, 
@@ -70,9 +70,8 @@ def agregar_producto(request):
             )
             return redirect('ver_producto')
         except Exception as e:
-            print(f"Error al guardar producto: {e}")
             return render(request, 'producto/agregar_producto.html', {
-                'error_message': 'Hubo un error al guardar el producto.',
+                'error_message': f'Hubo un error al guardar el producto: {e}',
                 'titulo': 'Agregar Producto'
             })
             
@@ -95,22 +94,15 @@ def actualizar_producto(request, producto_id):
             producto.save()
             return redirect('ver_producto')
         except Exception as e:
-            print(f"Error al actualizar producto: {e}")
             return render(request, 'producto/actualizar_producto.html', {
                 'producto': producto,
-                'error_message': 'Hubo un error al actualizar el producto.',
+                'error_message': f'Hubo un error al actualizar el producto: {e}',
                 'titulo': 'Actualizar Producto'
             })
     return render(request, 'producto/actualizar_producto.html', {
         'producto': producto,
         'titulo': 'Actualizar Producto'
     })
-
-
-def realizar_actualizacion_producto(request, producto_id):
-    # Esta vista es innecesaria si actualizar_producto maneja POST.
-    # Si la mantienes, asegúrate de que solo redirija o use la lógica de POST de actualizar_producto
-    return redirect('actualizar_producto', producto_id=producto_id) # Redirigir a la vista que maneja el POST
 
 
 def borrar_producto(request, producto_id):
@@ -131,18 +123,27 @@ def borrar_producto(request, producto_id):
     })
 
 # =========================================================================
-# VISTAS CRUD DE ORDEN DE VENTA
+# VISTAS CRUD DE ORDEN DE VENTA (MODIFICADA)
 # =========================================================================
 
 def ver_ordenes(request):
     """Muestra la lista de todas las órdenes de venta."""
     ordenes = OrdenDeVenta.objects.all().order_by('-fecha_orden')
+    
+    # MODIFICACIÓN: Añadir el primer detalle a cada orden para mostrarlo en la tabla
+    for orden in ordenes:
+        primer_detalle = orden.detalles.select_related('producto').first() 
+        orden.producto_muestra = primer_detalle.producto.nombre if primer_detalle else 'Sin productos'
+        orden.cantidad_muestra = primer_detalle.cantidad if primer_detalle else 0
+        
     return render(request, 'orden/ver_ordenes.html', {
         'ordenes': ordenes,
         'titulo': 'Ver Órdenes de Venta'
     })
 
 def agregar_orden(request):
+    productos = Producto.objects.all().filter(stock__gt=0) # Productos disponibles
+    
     if request.method == 'POST':
         cliente = request.POST.get('cliente')
         direccion_envio = request.POST.get('direccion_envio')
@@ -150,30 +151,72 @@ def agregar_orden(request):
         metodo_pago = request.POST.get('metodo_pago')
         comentarios = request.POST.get('comentarios')
         
-        if not cliente or not direccion_envio:
+        # Nuevos campos del formulario para el producto inicial
+        producto_id = request.POST.get('producto_inicial')
+        cantidad_inicial_str = request.POST.get('cantidad_inicial')
+        
+        if not cliente or not direccion_envio or not producto_id or not cantidad_inicial_str:
             return render(request, 'orden/agregar_orden.html', {
                 'titulo': 'Agregar Orden de Venta',
-                'error': 'Faltan campos obligatorios: Cliente y Dirección.',
+                'error': 'Faltan campos obligatorios: Cliente, Dirección y Producto Inicial.',
                 'estado_choices': ESTADO_CHOICES,
-                'metodo_choices': METODO_CHOICES
+                'metodo_choices': METODO_CHOICES,
+                'productos': productos
             })
 
-        OrdenDeVenta.objects.create(
-            cliente=cliente,
-            direccion_envio=direccion_envio,
-            estado=estado,
-            metodo_pago=metodo_pago,
-            comentarios=comentarios,
-            total=0.00
-        )
-        return redirect('ver_ordenes')
+        try:
+            cantidad_inicial = int(cantidad_inicial_str)
+            producto = get_object_or_404(Producto, pk=producto_id)
+            
+            if cantidad_inicial <= 0:
+                 raise ValueError("La cantidad debe ser mayor a cero.")
+            
+            with transaction.atomic():
+                # 1. Crear la Orden de Venta
+                nueva_orden = OrdenDeVenta.objects.create(
+                    cliente=cliente,
+                    direccion_envio=direccion_envio,
+                    estado=estado,
+                    metodo_pago=metodo_pago,
+                    comentarios=comentarios,
+                    total=0.00
+                )
+                
+                # 2. Crear el DetalleOrden con el producto inicial
+                precio_unitario = producto.precio
+                subtotal_calc = precio_unitario * cantidad_inicial
+                
+                DetalleOrden.objects.create(
+                    orden=nueva_orden,
+                    producto=producto,
+                    cantidad=cantidad_inicial,
+                    precio_unitario=precio_unitario,
+                    subtotal=subtotal_calc,
+                    descuento=decimal.Decimal('0.00'),
+                    observaciones="Producto inicial al crear orden."
+                )
+                
+                # 3. Actualizar el Total de la Orden
+                actualizar_total_orden(nueva_orden.pk)
+            
+            return redirect('ver_ordenes')
+            
+        except (ValueError, Exception) as e:
+             return render(request, 'orden/agregar_orden.html', {
+                'titulo': 'Agregar Orden de Venta',
+                'error': f'Error al procesar el producto: {e}',
+                'estado_choices': ESTADO_CHOICES,
+                'metodo_choices': METODO_CHOICES,
+                'productos': productos
+            })
             
     return render(request, 'orden/agregar_orden.html', {
         'titulo': 'Agregar Orden de Venta',
         'estado_choices': ESTADO_CHOICES,
-        'metodo_choices': METODO_CHOICES
+        'metodo_choices': METODO_CHOICES,
+        'productos': productos
     })
-    
+
 def editar_orden(request, pk):
     orden = get_object_or_404(OrdenDeVenta, pk=pk)
     
@@ -196,7 +239,8 @@ def editar_orden(request, pk):
 def eliminar_orden(request, pk):
     orden = get_object_or_404(OrdenDeVenta, pk=pk)
     if request.method == 'POST':
-        orden.delete()
+        with transaction.atomic():
+            orden.delete()
         return redirect('ver_ordenes')
     return render(request, 'orden/eliminar_orden.html', {
         'orden': orden,
@@ -204,7 +248,7 @@ def eliminar_orden(request, pk):
     })
     
 # =========================================================================
-# VISTAS CRUD DE DETALLE DE ORDEN (Fase 3 - CORREGIDAS)
+# VISTAS CRUD DE DETALLE DE ORDEN
 # =========================================================================
 
 def ver_detalles(request):
@@ -218,14 +262,13 @@ def ver_detalles(request):
 
 def agregar_detalle(request):
     ordenes = OrdenDeVenta.objects.all()
-    productos = Producto.objects.all().filter(stock__gt=0) # Solo productos en stock
+    productos = Producto.objects.all().filter(stock__gt=0)
 
     if request.method == 'POST':
         orden_id = request.POST.get('orden')
         producto_id = request.POST.get('producto')
         cantidad_str = request.POST.get('cantidad')
         
-        # CAPTURA DE NUEVOS CAMPOS
         descuento_str = request.POST.get('descuento', '0.00') 
         observaciones = request.POST.get('observaciones', '')
         
@@ -233,21 +276,17 @@ def agregar_detalle(request):
             orden = get_object_or_404(OrdenDeVenta, pk=orden_id)
             producto = get_object_or_404(Producto, pk=producto_id)
             
-            # Conversión y validación
             cantidad = int(cantidad_str)
             descuento = decimal.Decimal(descuento_str or '0.00') 
             
-            if cantidad <= 0:
-                raise ValueError("La cantidad debe ser mayor a cero.")
-            if descuento < 0:
-                 raise ValueError("El descuento no puede ser negativo.")
+            if cantidad <= 0 or descuento < 0:
+                raise ValueError("Cantidad y Descuento deben ser válidos.")
 
             precio_unitario = producto.precio 
-            
-            # CALCULAR SUBTOTAL
             subtotal_calc = (precio_unitario * cantidad) - descuento
+            
             if subtotal_calc < 0:
-                 raise ValueError("El subtotal no puede ser negativo. Revise el descuento.")
+                 raise ValueError("El subtotal no puede ser negativo.")
 
             detalle_existente = DetalleOrden.objects.filter(
                 orden=orden,
@@ -256,10 +295,9 @@ def agregar_detalle(request):
 
             with transaction.atomic():
                 if detalle_existente:
-                    # Lógica simple: sumar cantidad y recalcular subtotal
                     detalle_existente.cantidad += cantidad
-                    detalle_existente.descuento += descuento # Sumar descuento al existente
-                    detalle_existente.subtotal = detalle_existente.subtotal_calculado # Recalcular
+                    detalle_existente.descuento += descuento
+                    detalle_existente.subtotal = detalle_existente.subtotal_calculado
                     detalle_existente.save()
                 else:
                     DetalleOrden.objects.create(
@@ -298,20 +336,17 @@ def editar_detalle(request, pk):
     if request.method == 'POST':
         orden_anterior_pk = detalle.orden.pk 
         
-        # Captura y validación de campos
         cantidad = int(request.POST.get('cantidad'))
         descuento = decimal.Decimal(request.POST.get('descuento', '0.00') or '0.00')
         observaciones = request.POST.get('observaciones')
         
         if cantidad <= 0 or descuento < 0:
-             return redirect('editar_detalle', pk=pk) # Mejorar la validación con mensaje de error
+             return redirect('editar_detalle', pk=pk) 
 
-        # Asignación de objetos
         orden_nueva = get_object_or_404(OrdenDeVenta, pk=request.POST.get('orden'))
         nuevo_producto = get_object_or_404(Producto, pk=request.POST.get('producto'))
         
         with transaction.atomic():
-            # Actualizar campos
             detalle.orden = orden_nueva
             detalle.cantidad = cantidad
             detalle.descuento = descuento
@@ -321,11 +356,9 @@ def editar_detalle(request, pk):
                 detalle.precio_unitario = nuevo_producto.precio 
             detalle.producto = nuevo_producto
             
-            # Recalcular Subtotal antes de guardar
             detalle.subtotal = detalle.subtotal_calculado
             detalle.save()
         
-            # Recalcular totales de órdenes
             if orden_anterior_pk != detalle.orden.pk:
                  actualizar_total_orden(orden_anterior_pk)
             
@@ -347,7 +380,7 @@ def eliminar_detalle(request, pk):
         
         with transaction.atomic():
             detalle.delete()
-            actualizar_total_orden(orden_pk) # Actualiza el total de la orden afectada
+            actualizar_total_orden(orden_pk)
             
         return redirect('ver_detalles')
 
@@ -358,7 +391,7 @@ def eliminar_detalle(request, pk):
 
 
 # =========================================================================
-# VISTA DE REPORTES
+# VISTA DE REPORTES (Mínima)
 # =========================================================================
 
 def ver_reportes(request):

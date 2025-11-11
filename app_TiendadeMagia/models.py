@@ -1,5 +1,6 @@
 from django.db import models
 from datetime import date 
+import decimal
 
 # =========================================================================
 # 1. CONSTANTES DE CHOICES
@@ -65,7 +66,7 @@ class OrdenDeVenta(models.Model):
 
 
 # =========================================================================
-# 4. MODELO DetalleOrden (¡CORREGIDO!)
+# 4. MODELO DetalleOrden
 # =========================================================================
 
 class DetalleOrden(models.Model):
@@ -75,7 +76,7 @@ class DetalleOrden(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     
-    # CAMPOS AÑADIDOS SEGÚN EL ESQUEMA:
+    # CAMPOS DEL ESQUEMA
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, blank=True, null=True)
     observaciones = models.CharField(max_length=255, blank=True, null=True)
@@ -88,9 +89,7 @@ class DetalleOrden(models.Model):
     def __str__(self):
         return f"{self.cantidad} x {self.producto.nombre} en Orden #{self.orden.pk}"
 
-    # Propiedad para facilitar el cálculo en Python/Template
     @property
     def subtotal_calculado(self):
-        # Aseguramos que descuento sea tratado como Decimal
-        desc = self.descuento if self.descuento is not None else 0.00
+        desc = self.descuento if self.descuento is not None else decimal.Decimal('0.00')
         return (self.cantidad * self.precio_unitario) - desc

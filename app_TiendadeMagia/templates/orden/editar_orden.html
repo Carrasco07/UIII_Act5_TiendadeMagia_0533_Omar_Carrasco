@@ -3,58 +3,69 @@
 {% block title %}Editar Orden #{{ orden.pk }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 pt-5">
-    <h2 class="text-primary"><i class="fas fa-edit me-2"></i> Editar Orden de Venta #{{ orden.pk }}</h2>
-    <a href="{% url 'ver_ordenes' %}" class="btn btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left me-2"></i> Volver a Órdenes
-    </a>
-</div>
-
-<div class="card shadow-lg border-0" style="border-radius: 10px;">
-    <div class="card-body p-4">
-        <form method="POST">
-            {% csrf_token %}
-            
-            <div class="mb-3">
-                <label for="id_cliente" class="form-label">Nombre del Cliente</label>
-                <input type="text" class="form-control" id="id_cliente" name="cliente" value="{{ orden.cliente }}" required>
+<div class="row justify-content-center pt-5">
+    <div class="col-md-10 col-lg-8">
+        <div class="card shadow-lg border-0" style="border-radius: 15px;">
+            <div class="card-header bg-warning text-dark text-center" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                <h3 class="mb-0"><i class="fas fa-edit me-2"></i> Editar Orden de Venta #{{ orden.pk }}</h3>
             </div>
+            <div class="card-body p-4">
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <h5 class="mb-3 text-warning"><i class="fas fa-user-circle me-2"></i> Datos del Pedido</h5>
 
-            <div class="mb-3">
-                <label for="id_direccion_envio" class="form-label">Dirección de Envío</label>
-                <textarea class="form-control" id="id_direccion_envio" name="direccion_envio" rows="3" required>{{ orden.direccion_envio }}</textarea>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="id_estado" class="form-label">Estado de la Orden</label>
-                    <select class="form-select" id="id_estado" name="estado" required>
-                        {% for value, label in estado_choices %}
-                            <option value="{{ value }}" {% if orden.estado == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cliente" class="form-label fw-bold">Nombre del Cliente</label>
+                            <input type="text" class="form-control" id="cliente" name="cliente" value="{{ orden.cliente }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="direccion_envio" class="form-label fw-bold">Dirección de Envío</label>
+                            <input type="text" class="form-control" id="direccion_envio" name="direccion_envio" value="{{ orden.direccion_envio }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="estado" class="form-label fw-bold">Estado</label>
+                            <select class="form-select" id="estado" name="estado" required>
+                                {% for value, label in estado_choices %}
+                                    <option value="{{ value }}" {% if value == orden.estado %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="metodo_pago" class="form-label fw-bold">Método de Pago</label>
+                            <select class="form-select" id="metodo_pago" name="metodo_pago" required>
+                                {% for value, label in metodo_choices %}
+                                    <option value="{{ value }}" {% if value == orden.metodo_pago %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="comentarios" class="form-label fw-bold">Comentarios (Opcional)</label>
+                        <textarea class="form-control" id="comentarios" name="comentarios" rows="3">{{ orden.comentarios }}</textarea>
+                    </div>
 
-                <div class="col-md-6 mb-3">
-                    <label for="id_metodo_pago" class="form-label">Método de Pago</label>
-                    <select class="form-select" id="id_metodo_pago" name="metodo_pago" required>
-                        {% for value, label in metodo_choices %}
-                            <option value="{{ value }}" {% if orden.metodo_pago == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+                    <h5 class="mt-4 mb-3 text-secondary"><i class="fas fa-dollar-sign me-2"></i> Total Actual: ${{ orden.total|floatformat:2 }}</h5>
+                    <small class="form-text text-muted">El total se actualiza automáticamente al modificar los detalles de la orden.</small>
 
-            <div class="mb-3">
-                <label for="id_comentarios" class="form-label">Comentarios / Notas</label>
-                <textarea class="form-control" id="id_comentarios" name="comentarios" rows="3">{{ orden.comentarios }}</textarea>
+                    
+                    <div class="d-grid gap-2 pt-3">
+                        <button type="submit" class="btn btn-warning btn-lg text-dark shadow">
+                            <i class="fas fa-save me-2"></i> Guardar Cambios
+                        </button>
+                        <a href="{% url 'ver_ordenes' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Cancelar y Volver
+                        </a>
+                    </div>
+                </form>
             </div>
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-dollar-sign me-2"></i> **Total de Orden:** ${{ orden.total|floatformat:2 }}. El total se calcula automáticamente con los **Detalles de Orden**.
-            </div>
-
-            <button type="submit" class="btn btn-warning text-dark mt-3"><i class="fas fa-save me-2"></i> Guardar Cambios</button>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}

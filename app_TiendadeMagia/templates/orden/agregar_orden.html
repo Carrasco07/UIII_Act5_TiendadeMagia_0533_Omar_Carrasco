@@ -1,60 +1,97 @@
 {% extends 'base.html' %}
 
-{% block title %}Agregar Orden de Venta{% endblock %}
+{% block title %}Agregar Orden{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 pt-5">
-    <h2 class="text-primary"><i class="fas fa-plus me-2"></i> Agregar Nueva Orden de Venta</h2>
-    <a href="{% url 'ver_ordenes' %}" class="btn btn-secondary shadow-sm">
-        <i class="fas fa-arrow-left me-2"></i> Volver a Órdenes
-    </a>
-</div>
-
-{% if error %}
-<div class="alert alert-danger">{{ error }}</div>
-{% endif %}
-
-<div class="card shadow-lg border-0" style="border-radius: 10px;">
-    <div class="card-body p-4">
-        <form method="POST">
-            {% csrf_token %}
-            
-            <div class="mb-3">
-                <label for="id_cliente" class="form-label">Nombre del Cliente</label>
-                <input type="text" class="form-control" id="id_cliente" name="cliente" required>
+<div class="row justify-content-center pt-5">
+    <div class="col-md-10 col-lg-8">
+        <div class="card shadow-lg border-0" style="border-radius: 15px;">
+            <div class="card-header bg-primary text-white text-center" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+                <h3 class="mb-0"><i class="fas fa-file-invoice me-2"></i> Crear Nueva Orden de Venta</h3>
             </div>
+            <div class="card-body p-4">
+                
+                {% if error %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ error }}
+                    </div>
+                {% endif %}
 
-            <div class="mb-3">
-                <label for="id_direccion_envio" class="form-label">Dirección de Envío</label>
-                <textarea class="form-control" id="id_direccion_envio" name="direccion_envio" rows="3" required></textarea>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="id_estado" class="form-label">Estado de la Orden</label>
-                    <select class="form-select" id="id_estado" name="estado" required>
-                        {% for value, label in estado_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <form method="POST">
+                    {% csrf_token %}
+                    
+                    <h5 class="mb-3 text-primary"><i class="fas fa-user-circle me-2"></i> Datos del Pedido</h5>
 
-                <div class="col-md-6 mb-3">
-                    <label for="id_metodo_pago" class="form-label">Método de Pago</label>
-                    <select class="form-select" id="id_metodo_pago" name="metodo_pago" required>
-                        {% for value, label in metodo_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="cliente" class="form-label fw-bold">Nombre del Cliente</label>
+                            <input type="text" class="form-control" id="cliente" name="cliente" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="direccion_envio" class="form-label fw-bold">Dirección de Envío</label>
+                            <input type="text" class="form-control" id="direccion_envio" name="direccion_envio" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="estado" class="form-label fw-bold">Estado</label>
+                            <select class="form-select" id="estado" name="estado" required>
+                                {% for value, label in estado_choices %}
+                                    <option value="{{ value }}" {% if value == 'Pendiente' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="metodo_pago" class="form-label fw-bold">Método de Pago</label>
+                            <select class="form-select" id="metodo_pago" name="metodo_pago" required>
+                                {% for value, label in metodo_choices %}
+                                    <option value="{{ value }}" {% if value == 'Efectivo' %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                         <div class="col-md-4 mb-3">
+                            <label for="comentarios" class="form-label fw-bold">Comentarios (Opcional)</label>
+                            <textarea class="form-control" id="comentarios" name="comentarios" rows="1"></textarea>
+                        </div>
+                    </div>
 
-            <div class="mb-3">
-                <label for="id_comentarios" class="form-label">Comentarios / Notas</label>
-                <textarea class="form-control" id="id_comentarios" name="comentarios" rows="3"></textarea>
+                    
+                    <hr class="my-4">
+                    <h5 class="mb-3 text-info"><i class="fas fa-box me-2"></i> Producto Inicial (Obligatorio)</h5>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="producto_inicial" class="form-label fw-bold">Producto</label>
+                            <select class="form-select" id="producto_inicial" name="producto_inicial" required>
+                                <option value="" disabled selected>Seleccione el producto principal de la orden</option>
+                                {% for producto in productos %}
+                                    <option value="{{ producto.pk }}">
+                                        {{ producto.nombre }} - ${{ producto.precio|floatformat:2 }} (Stock: {{ producto.stock }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Se creará automáticamente la primera línea de pedido (detalle).</small>
+                        </div>
+
+                        <div class="col-md-4 mb-4">
+                            <label for="cantidad_inicial" class="form-label fw-bold">Cantidad</label>
+                            <input type="number" class="form-control" id="cantidad_inicial" name="cantidad_inicial" value="1" min="1" required>
+                        </div>
+                    </div>
+
+                    
+                    <div class="d-grid gap-2 pt-3">
+                        <button type="submit" class="btn btn-success btn-lg shadow">
+                            <i class="fas fa-save me-2"></i> Guardar Orden y Primer Producto
+                        </button>
+                        <a href="{% url 'ver_ordenes' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Cancelar y Volver
+                        </a>
+                    </div>
+                </form>
             </div>
-            <button type="submit" class="btn btn-success mt-3"><i class="fas fa-save me-2"></i> Crear Orden</button>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}

@@ -16,7 +16,7 @@
 
 <div class="card shadow-lg border-0" style="border-radius: 10px;">
     <div class="card-body p-4">
-        <form method="POST" action="{% url 'realizar_actualizacion_producto' producto.pk %}">
+        <form method="POST" action="{% url 'actualizar_producto' producto.pk %}">
             {% csrf_token %}
             
             <div class="row">
